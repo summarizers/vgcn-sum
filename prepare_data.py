@@ -21,7 +21,7 @@ import os
 import sys
 from sklearn.utils import shuffle
 import pandas as pd
-from pytorch_pretrained_bert import BertTokenizer
+#from pytorch_pretrained_bert import BertTokenizer
 
 from nltk.corpus import stopwords
 import nltk
@@ -35,13 +35,13 @@ Config:
 '''
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--ds', type=str, default='cola')
+parser.add_argument('--ds', type=str, default='naver')
 parser.add_argument('--sw', type=int, default=0) #stopwords
 args = parser.parse_args()
 cfg_ds = args.ds
 cfg_del_stop_words=True if args.sw==1 else False
 
-dataset_list={'sst', 'cola'}
+dataset_list={'sst', 'cola','naver'}
 
 if cfg_ds not in dataset_list:
     sys.exit("Dataset choice error!")
@@ -62,37 +62,52 @@ test_data_taux = 0.10
 
 # word co-occurence with context windows
 window_size = 20
-if cfg_ds in ('mr','sst','cola'):
-    window_size = 1000 # use whole sentence #근데 cola는 1000가 one sentence가 아니잖아
+if cfg_ds in ('mr','sst','cola','naver'):
+    window_size = 1000 
 
 tfidf_mode='only_tf'  
 
 cfg_use_bert_tokenizer_at_clean=True
 
-bert_model_scale='bert-base-uncased'
-bert_lower_case=True
+#bert_model_scale='bert-base-uncased'
+#bert_lower_case=True
 
 print('---data prepare configure---')
 print('Data set: ',cfg_ds,'freq_min_for_word_choice',freq_min_for_word_choice,'window_size',window_size)
-print('del_stop_words',cfg_del_stop_words,'use_bert_tokenizer_at_clean',cfg_use_bert_tokenizer_at_clean)
-print('tfidf-mode',tfidf_mode,'bert_model_scale',bert_model_scale,'bert_lower_case',bert_lower_case)
 print('\n')
 
-##########################################
-# del_http_user_tokenize function (우린안씀)
-##########################################
-start=time.time()
 
-def del_http_user_tokenize(tweet):
-    # delete [ \t\n\r\f\v]
-    space_pattern = r'\s+'
-    url_regex = (r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|'
-        r'[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
-    mention_regex = r'@[\w\-]+'
-    tweet = re.sub(space_pattern, ' ', tweet)
-    tweet = re.sub(url_regex, '', tweet)
-    tweet = re.sub(mention_regex, '', tweet)
-    return tweet
+##########################################
+# CLEARNING STRING. 
+##########################################
+def clean_str(text):
+  # Common
+  # E-mail 제거
+  text = re.sub("([\w\d.]+@[\w\d.]+)", "", text)
+  text = re.sub("([\w\d.]+@)", "", text)
+  # 괄호 안 제거
+  text = re.sub("<[\w\s\d‘’=/·~:&,`]+>", "", text)
+  text = re.sub("\([\w\s\d‘’=/·~:&,`]+\)", "", text)
+  text = re.sub("\[[\w\s\d‘’=/·~:&,`]+\]", "", text)
+  text = re.sub("【[\w\s\d‘’=/·~:&,`]+】", "", text)
+  # 전화번호 제거
+  text = re.sub("(\d{2,3})-(\d{3,4}-\d{4})", "", text)  # 전화번호
+  text = re.sub("(\d{3,4}-\d{4})", "", text)  # 전화번호
+  # 홈페이지 주소 제거
+  text = re.sub("(www.\w.+)", "", text)
+  text = re.sub("(.\w+.com)", "", text)
+  text = re.sub("(.\w+.co.kr)", "", text)
+  text = re.sub("(.\w+.go.kr)", "", text)
+  # 기자 이름 제거
+  text = re.sub("/\w+[=·\w@]+\w+\s[=·\w@]+", "", text)
+  text = re.sub("\w{2,4}\s기자", "", text)
+  # 한자 제거
+  text = re.sub("[\u2E80-\u2EFF\u3400-\u4DBF\u4E00-\u9FBF\uF900]+", "", text)
+  # 특수기호 제거
+  text = re.sub("[◇#/▶▲◆■●△①②③★○◎▽=▷☞◀ⓒ□?㈜♠☎]", "", text)
+  # 따옴표 제거
+  text = re.sub("[\"'”“‘’]", "", text)
+  return text
 
 
 
@@ -104,30 +119,37 @@ def del_http_user_tokenize(tweet):
 # (앞으로 쓰일 df 만들기)
 # df = pd.concat((train_valid_df, test_df)) 
 ##########################################
-if cfg_ds=='cola':
+if cfg_ds=='naver':
     label2idx = {'0':0, '1':1} #나중에 dump할때 필요
     idx2label = {0:'0', 1:'1'}
-    train_valid_df = pd.read_csv('data/CoLA/train.tsv', encoding='utf-8', header=None, sep='\t')
-    train_valid_df = shuffle(train_valid_df)
+    
+    train_valid_df = pd.read_csv('data/naver/ratings_train.txt', encoding='utf-8', sep='\t')
+    train_valid_df.dropna(inplace=True)    
+    train_valid_df['document'] = train_valid_df['document'].apply(clean_str)
+    train_valid_df = train_valid_df.loc[train_valid_df['document']!='',:]
+    #train_valid_df = shuffle(train_valid_df)
     
     # use dev set as test set, because we can not get the ground true label of the real test set.
-    test_df = pd.read_csv('data/CoLA/dev.tsv', encoding='utf-8', header=None, sep='\t')
-    test_df = shuffle(test_df)
+    test_df = pd.read_csv('data/naver/ratings_test.txt', encoding='utf-8', sep='\t')
+    test_df.dropna(inplace=True)
+    test_df['document'] = test_df['document'].apply(clean_str)
+    test_df = test_df.loc[test_df['document']!='',:]
+    #test_df = shuffle(test_df)
 
     #train을 train/valid 나누기
-    train_valid_size=train_valid_df[1].count() # train dataset의 문장갯수 #1은 걍 label
+    train_valid_size=train_valid_df['id'].count() # train dataset의 문장갯수 #1은 걍 label
     valid_size=int(train_valid_size*valid_data_taux) #train size에 0.05곱한거
     train_size=train_valid_size-valid_size #문장갯수에서 valid size빼기..? 그럼 99.5% 문장수
 
     #dev를 testset으로 쓰기
-    test_size=test_df[1].count() #dev dataset 갯수
-    print('CoLA train_valid Total:',train_valid_size,'test Total:',test_size)
+    test_size=test_df['id'].count() #dev dataset 갯수
+    print('NAVER train_valid Total:',train_valid_size,'test Total:',test_size)
     
     #모든거 다 합친거 만들기
     df=pd.concat((train_valid_df,test_df))
-    corpus = df[3] #3은 sentence
+    corpus = df['document'] 
 
-    y = df[1].values  
+    y = df['label'].values  
     y_prob=np.eye(len(y), len(label2idx))[y] #각각 문장갯수마다 2개 space만듬
     corpus_size=len(y)
     
@@ -136,14 +158,15 @@ if cfg_ds=='cola':
 ##########################################
 doc_content_list=[]
 for t in corpus:
-    doc_content_list.append(del_http_user_tokenize(t)) #이상한 symbol들 없애줌
+    doc_content_list.append(t) 
 max_len_seq=0
 max_len_seq_idx=-1
 min_len_seq=1000
 min_len_seq_idx=-1
 sen_len_list=[]
+
 for i,seq in enumerate(doc_content_list):
-    seq=seq.split() #['Bill', 'left', 'when', 'that', 'no', 'one', 'else', 'was', 'awake', 'is', 'certain.']
+    seq=seq.split() 
     sen_len_list.append(len(seq)) #length 만 넣어주는 vector
     if len(seq)<min_len_seq:
         min_len_seq=len(seq)
@@ -155,6 +178,7 @@ print('Statistics for original text: max_len%d,id%d, min_len%d,id%d, avg_len%.2f
     %(max_len_seq, max_len_seq_idx,min_len_seq, min_len_seq_idx,np.array(sen_len_list).mean()))
 
 
+
 ##########################################
 #우리는 안쓰는 REMOVE STOPWORDS
 #Remove stop words from tweets
@@ -162,39 +186,7 @@ print('Statistics for original text: max_len%d,id%d, min_len%d,id%d, avg_len%.2f
 
 print('Remove stop words from tweets...')
 
-if cfg_del_stop_words: #default=false
-    from nltk.corpus import stopwords
-    nltk.download('stopwords')
-    stop_words = stopwords.words('english')
-    #A stop word is a commonly used word (such as “the”, “a”, “an”, “in”) that a search engine has been programmed to ignore, both when indexing entries for searching and when retrieving them as the result of a search query
-    stop_words=set(stop_words)
-else:
-    stop_words={}
-print('Stop_words:',stop_words)
-
-##########################################
-# CLEARNING STRING. 한글에서 안씀
-##########################################
-def clean_str(string):
-    """
-    Tokenization/string cleaning for all datasets except for SST.
-    Original taken from https://github.com/yoonkim/CNN_sentence/blob/master/process_data.py
-    """
-    string = re.sub(r"[^A-Za-z0-9(),!?\'\`]", " ", string)
-    # string = " ".join(re.split("[^a-zA-Z]", string.lower())).strip()
-    string = re.sub(r"\'s", " \'s", string)
-    string = re.sub(r"\'ve", " \'ve", string)
-    string = re.sub(r"n\'t", " n\'t", string)
-    string = re.sub(r"\'re", " \'re", string)
-    string = re.sub(r"\'d", " \'d", string)
-    string = re.sub(r"\'ll", " \'ll", string)
-    string = re.sub(r",", " , ", string)
-    string = re.sub(r"!", " ! ", string)
-    string = re.sub(r"\(", " \( ", string)
-    string = re.sub(r"\)", " \) ", string)
-    string = re.sub(r"\?", " \? ", string)
-    string = re.sub(r"\s{2,}", " ", string)
-    return string.strip().lower()
+stop_words={}
 
 ##########################################
 # CLEAN THE STRING AND TOKENIZE USING BERT
@@ -202,13 +194,15 @@ def clean_str(string):
 tmp_word_freq = {}  # to remove rare words
 new_doc_content_list = []
 
+from tokenization_kobert import KoBertTokenizer
+
 #setup bert tokenizer
 if cfg_use_bert_tokenizer_at_clean: #default true
     print('Use bert_tokenizer for seperate words to bert vocab')
-    bert_tokenizer = BertTokenizer.from_pretrained(bert_model_scale, do_lower_case=bert_lower_case) #'bert-base-uncased'
+    bert_tokenizer = KoBertTokenizer.from_pretrained("monologg/kobert")
 
 for doc_content in doc_content_list: # doc_content_list == corpus 라인마다 한거
-    new_doc = clean_str(doc_content)
+    new_doc = doc_content #clean_str(doc_content)
     if cfg_use_bert_tokenizer_at_clean:
         sub_words = bert_tokenizer.tokenize(new_doc) #['bill', 'left', 'when', 'that', 'no', 'one', 'else', 'was', 'awake', 'is', 'certain']
         sub_doc=' '.join(sub_words).strip() #bill left when that no one else was awake is certain
@@ -225,6 +219,7 @@ for doc_content in doc_content_list: # doc_content_list == corpus 라인마다 �
 doc_content_list=new_doc_content_list #tokenize된걸로 교체
 
 
+
 ##########################################
 # GET INDEX, NUMBER OF EMPTY STRING
 # empty string 바꿔주지도 않음..
@@ -235,7 +230,7 @@ for i,doc_content in enumerate(doc_content_list):
     words = doc_content.split() #['bill', 'left', 'when', 'that', 'no', 'one', 'else', 'was', 'awake', 'is', 'certain']
     doc_words = []
     for word in words:
-        if cfg_ds in ('mr','sst','cola'):
+        if cfg_ds in ('mr','sst','cola','naver'):
             doc_words.append(word)
         elif word not in stop_words and tmp_word_freq[word] >= freq_min_for_word_choice:
             doc_words.append(word)
@@ -250,8 +245,9 @@ for i,doc_content in enumerate(doc_content_list):
         print('No.',i, 'is a empty doc after treat, replaced by \'%s\'. original:%s'%(doc_str,doc_content))
     clean_docs.append(doc_str)
 
-print('Total',count_void_doc,' docs are empty.')
+print('Total',count_void_doc,' docs are empty.') #46개 나옴
 
+exit()
 
 ##########################################
 # GIVE STATS (MIN, MAX, AVERAGE) OF SENTENCE LENGTH
