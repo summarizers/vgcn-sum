@@ -107,6 +107,7 @@ def clean_str(text):
   text = re.sub("[◇#/▶▲◆■●△①②③★○◎▽=▷☞◀ⓒ□?㈜♠☎]", "", text)
   # 따옴표 제거
   text = re.sub("[\"'”“‘’]", "", text)
+  text = text.strip()
   return text
 
 
@@ -247,8 +248,6 @@ for i,doc_content in enumerate(doc_content_list):
 
 print('Total',count_void_doc,' docs are empty.') #46개 나옴
 
-exit()
-
 ##########################################
 # GIVE STATS (MIN, MAX, AVERAGE) OF SENTENCE LENGTH
 # AFTER TOKENIZATION.....?????
@@ -286,7 +285,7 @@ print('Average_len : ' + str(aver_len))
 # df = pd.concat((train_valid_df, test_df))
 ##########################################
 
-if cfg_ds in ('mr', 'sst','cola'):
+if cfg_ds in ('mr', 'sst','cola', 'naver'):
     shuffled_clean_docs=clean_docs #cleand_docs[0] : bill left when that no one else was awake is certain
 
     train_docs=shuffled_clean_docs[:train_size] # train_size == 원래 train.tsv 의 99.5%
@@ -576,6 +575,8 @@ node_size = vocab_size + corpus_size
 node_size = vocab_size + corpus_size #corpus_size: len(y), y는 df로 만듬
 
 #모든거 다 합쳐진 adj matrix 만들기
+# https://github.com/tkipf/pygcn/issues/3 
+# https://github.com/yao8839836/text_gcn/issues/17 directed -> undirected 
 adj_list = []
 adj_list.append(sp.csr_matrix((weight, (row, col)), shape=(node_size, node_size), dtype=np.float32))
 for i,adj in enumerate(adj_list):
@@ -656,4 +657,4 @@ if will_dump_objects:
     with open(dump_dir+"/data_%s.shuffled_clean_docs"%cfg_ds, 'wb') as f:
         pkl.dump(shuffled_clean_docs, f)
         
-print('Data prepared, spend %.2f s'%(time.time()-start))
+# print('Data prepared, spend %.2f s'%(time.time()-start))

@@ -49,7 +49,7 @@ Configuration
 '''
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--ds', type=str, default='mr')
+parser.add_argument('--ds', type=str, default='naver')
 parser.add_argument('--load', type=int, default=0)
 parser.add_argument('--sw', type=int, default='0')
 parser.add_argument('--dim', type=int, default='16')
@@ -65,7 +65,7 @@ gcn_embedding_dim=args.dim
 learning_rate0=args.lr
 l2_decay=args.l2
 
-dataset_list={'sst', 'cola'}
+dataset_list={'sst', 'cola', 'naver'}
 
 total_train_epochs = 9 
 dropout_rate = 0.2  #0.5 # Dropout rate (1 - keep probability).
@@ -78,10 +78,15 @@ elif cfg_ds=='cola':
     batch_size = 16 #12
     learning_rate0 = 8e-6 #2e-5  
     l2_decay = 0.001 
+elif cfg_ds=='naver':
+    batch_size = 16 #12
+    learning_rate0 = 8e-6 #2e-5  
+    l2_decay = 0.001 
+
 
 MAX_SEQ_LENGTH = 200+gcn_embedding_dim #한 문장이 200을 넘지 않는다고 가정
 gradient_accumulation_steps = 1
-bert_model_scale = 'bert-base-uncased'
+bert_model_scale = 'monologg/kobert'
 do_lower_case = True
 warmup_proportion = 0.1
 
@@ -188,7 +193,9 @@ gc.collect()
 train_classes_num, train_classes_weight = get_class_count_and_weight(train_y,len(label2idx))
 loss_weight=torch.tensor(train_classes_weight).to(device)
 
-tokenizer = BertTokenizer.from_pretrained(bert_model_scale, do_lower_case=do_lower_case)
+from tokenization_kobert import KoBertTokenizer
+
+tokenizer =  KoBertTokenizer.from_pretrained("monologg/kobert")
 
 #%%
 
