@@ -1,3 +1,5 @@
+# VGCN-KoBERT summarization
+
 # VGCN-BERT: Augmenting BERT with Graph Embedding for Text Classification
 
 #### Authors: [Zhibin Lu](https://louis-udm.github.io) (zhibin.lu@umontreal.ca), Pan Du (pan.du@umontreal.ca), [Jian-Yun Nie](http://rali.iro.umontreal.ca/nie/jian-yun-nie/) (nie@iro.umontreal.ca)
