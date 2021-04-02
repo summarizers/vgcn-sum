@@ -35,13 +35,13 @@ Config:
 '''
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--ds', type=str, default='naver')
+parser.add_argument('--ds', type=str, default='dacon')
 parser.add_argument('--sw', type=int, default=0) #stopwords
 args = parser.parse_args()
 cfg_ds = args.ds
 cfg_del_stop_words=True if args.sw==1 else False
 
-dataset_list={'sst', 'cola','naver'}
+dataset_list={'sst', 'cola','dacon'}
 
 if cfg_ds not in dataset_list:
     sys.exit("Dataset choice error!")
@@ -62,7 +62,7 @@ test_data_taux = 0.10
 
 # word co-occurence with context windows
 window_size = 20
-if cfg_ds in ('mr','sst','cola','naver'):
+if cfg_ds in ('mr','sst','cola','dacon'):
     window_size = 1000 
 
 tfidf_mode='only_tf'  
@@ -120,18 +120,18 @@ def clean_str(text):
 # (앞으로 쓰일 df 만들기)
 # df = pd.concat((train_valid_df, test_df)) 
 ##########################################
-if cfg_ds=='naver':
+if cfg_ds=='dacon':
     label2idx = {'0':0, '1':1} #나중에 dump할때 필요
     idx2label = {0:'0', 1:'1'}
     
-    train_valid_df = pd.read_csv('data/naver/ratings_train.txt', encoding='utf-8', sep='\t')
+    train_valid_df = pd.read_csv('data/dacon/train.tsv', encoding='utf-8', sep='\t')
     train_valid_df.dropna(inplace=True)    
     train_valid_df['document'] = train_valid_df['document'].apply(clean_str)
     train_valid_df = train_valid_df.loc[train_valid_df['document']!='',:]
     #train_valid_df = shuffle(train_valid_df)
     
     # use dev set as test set, because we can not get the ground true label of the real test set.
-    test_df = pd.read_csv('data/naver/ratings_test.txt', encoding='utf-8', sep='\t')
+    test_df = pd.read_csv('data/dacon/eval.tsv', encoding='utf-8', sep='\t')
     test_df.dropna(inplace=True)
     test_df['document'] = test_df['document'].apply(clean_str)
     test_df = test_df.loc[test_df['document']!='',:]
@@ -144,7 +144,7 @@ if cfg_ds=='naver':
 
     #dev를 testset으로 쓰기
     test_size=test_df['id'].count() #dev dataset 갯수
-    print('NAVER train_valid Total:',train_valid_size,'test Total:',test_size)
+    print('Dacon train_valid Total:',train_valid_size,'test Total:',test_size)
     
     #모든거 다 합친거 만들기
     df=pd.concat((train_valid_df,test_df))
@@ -231,7 +231,7 @@ for i,doc_content in enumerate(doc_content_list):
     words = doc_content.split() #['bill', 'left', 'when', 'that', 'no', 'one', 'else', 'was', 'awake', 'is', 'certain']
     doc_words = []
     for word in words:
-        if cfg_ds in ('mr','sst','cola','naver'):
+        if cfg_ds in ('mr','sst','cola','dacon'):
             doc_words.append(word)
         elif word not in stop_words and tmp_word_freq[word] >= freq_min_for_word_choice:
             doc_words.append(word)
@@ -285,7 +285,7 @@ print('Average_len : ' + str(aver_len))
 # df = pd.concat((train_valid_df, test_df))
 ##########################################
 
-if cfg_ds in ('mr', 'sst','cola', 'naver'):
+if cfg_ds in ('mr', 'sst','cola', 'dacon'):
     shuffled_clean_docs=clean_docs #cleand_docs[0] : bill left when that no one else was awake is certain
 
     train_docs=shuffled_clean_docs[:train_size] # train_size == 원래 train.tsv 의 99.5%

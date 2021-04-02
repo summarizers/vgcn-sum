@@ -49,7 +49,7 @@ Configuration
 '''
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--ds', type=str, default='naver')
+parser.add_argument('--ds', type=str, default='dacon')
 parser.add_argument('--load', type=int, default=0)
 parser.add_argument('--sw', type=int, default='0')
 parser.add_argument('--dim', type=int, default='16')
@@ -65,7 +65,7 @@ gcn_embedding_dim=args.dim
 learning_rate0=args.lr
 l2_decay=args.l2
 
-dataset_list={'sst', 'cola', 'naver'}
+dataset_list={'sst', 'cola', 'dacon'}
 
 total_train_epochs = 9 
 dropout_rate = 0.2  #0.5 # Dropout rate (1 - keep probability).
@@ -78,7 +78,7 @@ elif cfg_ds=='cola':
     batch_size = 16 #12
     learning_rate0 = 8e-6 #2e-5  
     l2_decay = 0.001 
-elif cfg_ds=='naver':
+elif cfg_ds=='dacon':
     batch_size = 16 #12
     learning_rate0 = 8e-6 #2e-5  
     l2_decay = 0.001 
@@ -152,7 +152,7 @@ examples=[]
 for i,ts in enumerate(shuffled_clean_docs):
     ex=InputExample(i, ts.strip(), confidence=y_prob[i],label=y[i])
     examples.append(ex)
-
+ 
 num_classes=len(label2idx)
 gcn_vocab_size=len(gcn_vocab_map)
 train_size = len(train_y)
